@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== User ====================
+model User {
+  id        String     @id @default(uuid())
+  name      String
+  email     String     @unique
+  password  String
+  phone     String?
+  address   String?    @db.Text
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  cartItems CartItem[]
+  orders    Order[]
+}
+
+// ==================== Product ====================
+model Product {
+  id          String      @id @default(uuid())
+  title       String
+  category    String      // e.g. "Buket", "Papan Bunga", "Tanaman Hias"
+  price       Float
+  imageUrl    String?
+  tags        String      // Comma-separated, e.g. "Segar,Premium"
+  description String?     @db.Text
+  stock       Int         @default(0)
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+}
+
+// ==================== CartItem ====================
+model CartItem {
+  id        String   @id @default(uuid())
+  quantity  Int      @default(1)
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, productId]) // Mencegah item duplikat
+}
+
+// ==================== Order ====================
+model Order {
+  id            String      @id @default(uuid())
+  orderCode     String      @unique // e.g. "INV-384920"
+  status        OrderStatus @default(PENDING)
+  paymentMethod String      // "transfer", "qris", "cod"
+  totalPrice    Float
+  notes         String?     @db.Text
+
+  // Penerima
+  recipientName    String
+  recipientPhone   String
+  recipientAddress String  @db.Text
+
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum OrderStatus {
+  PENDING    // Menunggu konfirmasi
+  CONFIRMED  // Dikonfirmasi admin
+  PROCESSING // Sedang dibuat
+  SHIPPED    // Sedang dikirim
+  DELIVERED  // Sudah diterima
+  CANCELLED  // Dibatalkan
+}
+
+// ==================== OrderItem ====================
+model OrderItem {
+  id       String  @id @default(uuid())
+  quantity Int     @default(1)
+  price    Float   // Harga saat pemesanan (snapshot)
+
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+// ==================== FAQ ====================
+model Faq {
+  id        String   @id @default(uuid())
+  question  String
+  answer    String   @db.Text
+  order     Int      @default(0) // untuk sorting urutan tampil
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
